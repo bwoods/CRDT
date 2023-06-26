@@ -1,0 +1,12 @@
+[package]
+name = "crdt"
+version = "0.3.5"
+edition = "2021"
+
+[dependencies]
+# std only
+
+[dev-dependencies]
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+

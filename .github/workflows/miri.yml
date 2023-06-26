@@ -1,0 +1,30 @@
+name: Continuous integration # https://github.com/dtolnay/rust-toolchain
+
+on:
+  pull_request:
+    branches: [ "develop" ]
+  push:
+    paths:
+      - ".github/workflows/miri.yml"
+      - "**/*.rs"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: cargo test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-features
+  miri:
+    name: cargo miri test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo miri test --all-features -- --ignored # miri-only tets are #[ignore] 
