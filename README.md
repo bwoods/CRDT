@@ -12,7 +12,7 @@ This crate uses `unsafe` as it use a Rust [`union`](https://doc.rust-lang.org/re
 2. [Property testing](https://github.com/BurntSushi/quickcheck#readme) is done to ensure that it works on a large variety of strings.
 3. Every test is run under [Miri](https://github.com/rust-lang/miri#readme) [on every push](https://github.com/bwoods/CRDT/actions) to help check the sanity of the `unsafe` code.
 
-​    ![](https://github.com/bwoods//CRDT/actions/workflows/miri.yml/badge.svg)
+​    ![](https://github.com/bwoods//CRDT/actions/workflows/ci.yml/badge.svg)
 
 
 

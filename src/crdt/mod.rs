@@ -56,7 +56,7 @@ impl Position {
                 new.large.tag = 0xff;
                 new.large.len = len.try_into()?;
 
-                // SAFETY: If we use `.as_prt()` here, instead of `.as_mut_ptr()`, `miri test` fails
+                // SAFETY: If we use `.as_ptr()` here, instead of `.as_mut_ptr()`, `miri test` fails
                 //         the `.cast_mut()` in `Drop` (which is required by `Vec::from_raw_parts`).
                 new.large.idx = vec.leak().as_mut_ptr();
             }
