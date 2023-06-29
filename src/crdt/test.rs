@@ -31,7 +31,6 @@ fn boundary_size() -> Result<(), TryFromIntError> {
 }
 
 #[quickcheck]
-#[ignore] // this test is run under miri; no need to run it twice…
 fn property_testing(site: u16, clock: u16, bytes: Vec<u32>) -> Result<(), TryFromIntError> {
     let position = Position::new(site, clock, &bytes)?;
     let result = position.as_slice();
