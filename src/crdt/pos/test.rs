@@ -31,10 +31,18 @@ fn boundary_size() -> Result<(), TryFromIntError> {
 }
 
 #[quickcheck]
-fn property_testing(site: u16, clock: u16, bytes: Vec<u32>) -> Result<(), TryFromIntError> {
-    let position = Position::new(site, clock, &bytes)?;
-    let result = position.as_slice();
+fn property_testing(
+    site: u16,
+    clock: u16,
+    nums: Vec<std::num::NonZeroU32>,
+) -> Result<(), TryFromIntError> {
+    let nums: Vec<_> = nums.iter().map(|n| n.get()).collect();
 
-    assert_eq!(&bytes, result);
+    let position = Position::new(site, clock, &nums)?;
+
+    // small positions will be zero-padded; remove them before we compare
+    let result = position.as_slice().split(|&n| n == 0).next().unwrap_or(&[]);
+
+    assert_eq!(&nums, result);
     Ok(())
 }
