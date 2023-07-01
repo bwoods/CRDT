@@ -25,7 +25,7 @@ This crate uses `unsafe` as it use a Rust [`union`](https://doc.rust-lang.org/re
 
 1. The `unsafe` subset of the code is purposefully kept [small/simple](src/crdt/pos/mod.rs) to simplify manual auditing.
 2. [Property testing](https://github.com/BurntSushi/quickcheck#readme) is done to ensure that it works on a large variety of values.
-3. These tests are run under [Miri](https://github.com/rust-lang/miri#readme) ()[on every push](https://github.com/bwoods/CRDT/actions)) to help confirm the correctness of the `unsafe` code.
+3. These tests are run under [Miri](https://github.com/rust-lang/miri#readme) ([on every push](https://github.com/bwoods/CRDT/actions)) to help confirm the correctness of the `unsafe` code.
 
 ​    ![](https://github.com/bwoods//CRDT/actions/workflows/ci.yml/badge.svg)
 
@@ -36,7 +36,7 @@ This crate uses `unsafe` as it use a Rust [`union`](https://doc.rust-lang.org/re
 This repo can be added to your `Cargo.toml` file directly.
 
 ```yaml
-[dependencies.sso]
+[dependencies.crdt]
 git = "https://github.com/bwoods/CRDT"
 ```
 
