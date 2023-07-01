@@ -7,21 +7,24 @@ use super::Position;
 impl PartialOrd for Position {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.as_slice().partial_cmp(other.as_slice())
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Position {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        self.as_slice().cmp(other.as_slice())
+        let lhs = (self.as_slice(), self.site_id(), self.clock());
+        let rhs = (other.as_slice(), other.site_id(), other.clock());
+
+        lhs.cmp(&rhs)
     }
 }
 
 impl PartialEq for Position {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.as_slice().eq(other.as_slice())
+        self.cmp(other) == Ordering::Equal
     }
 }
 

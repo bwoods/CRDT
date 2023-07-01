@@ -41,7 +41,7 @@ fn property_testing(
     let position = Position::new(site, clock, &nums)?;
 
     // small positions will be zero-padded; remove them before we compare
-    let result = position.as_slice().split(|&n| n == 0).next().unwrap_or(&[]);
+    let result = &position.as_slice()[..position.level()];
 
     assert_eq!(&nums, result);
     Ok(())

@@ -76,6 +76,28 @@ impl Position {
     }
 
     #[inline]
+    /// Returns the site id for this Position.
+    fn clock(&self) -> u16 {
+        unsafe { self.small.clock }
+    }
+
+    #[inline]
+    /// Returns the site id for this Position.
+    fn level(&self) -> usize {
+        unsafe {
+            if self.is_heap() {
+                self.large.length as usize
+            } else {
+                self.small
+                    .path
+                    .iter()
+                    .position(|n| *n == 0)
+                    .unwrap_or(INLINE)
+            }
+        }
+    }
+
+    #[inline]
     /// Returns whether the (arbitrarily long) index was allocated on the heap.
     pub fn is_heap(&self) -> bool {
         unsafe { self.large.tag == 0xff }

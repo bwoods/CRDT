@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
+
 use tinyvec;
 
-mod pos;
 pub use pos::Position;
+
+mod pos;
 
 struct Storage {
     characters: BTreeMap<Position, char>, // TODO: Graphemes, not `char`s
@@ -29,6 +31,7 @@ impl Default for Storage {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn size() {
     let len = std::mem::size_of::<tinyvec::TinyVec<[bool; 6]>>();
     assert_eq!(len, 24);

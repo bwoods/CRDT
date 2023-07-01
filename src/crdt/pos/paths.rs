@@ -1,7 +1,7 @@
-use super::{Position, Small, INLINE};
-
 use itertools::Itertools;
 use tinyvec::TinyVec;
+
+use super::{Position, Small, INLINE};
 
 impl Position {
     pub(crate) fn first() -> Position {
@@ -47,7 +47,10 @@ impl Position {
                 .step_by((interval / count) as usize)
                 .tuple_windows()
                 .map(move |(p, q)| {
-                    let mut path = prefix.clone();
+                    let mut path = TinyVec::with_capacity(prefix.len() + 1);
+                    path.extend_from_slice(&prefix);
+
+                    debug_assert_eq!(path.capacity(), prefix.len() + 1);
                     path.push(rng.u32((p + 1)..q));
                     path
                 });
