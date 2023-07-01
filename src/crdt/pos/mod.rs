@@ -40,29 +40,34 @@ pub union Position {
 
 impl Position {
     pub fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, TryFromIntError> {
-        let len = path.len();
+        let len: u16 = path.len().try_into()?; // let this fail before `alloc` is called
         let mut new = Position {
-            small: Default::default(),
+            small: Small {
+                site,
+                clock,
+                ..Default::default()
+            },
         };
 
         unsafe {
-            if path.len() <= new.small.path.len() {
-                new.small.site = site;
-                new.small.clock = clock;
-                std::ptr::copy_nonoverlapping(path.as_ptr(), new.small.path.as_mut_ptr(), len)
+            if len as usize <= INLINE {
+                std::ptr::copy_nonoverlapping(
+                    path.as_ptr(),
+                    new.small.path.as_mut_ptr(),
+                    len as usize,
+                )
             } else {
-                let mut vec = Vec::with_capacity(len);
-                vec.extend(path.iter()); // copy bytes to the heap
-                vec.shrink_to_fit();
+                let layout = std::alloc::Layout::array::<u32>(len as usize).unwrap();
+                let ptr = std::alloc::alloc(layout) as *mut u32;
 
-                new.large.site = site;
-                new.small.clock = clock;
+                if ptr.is_null() {
+                    std::alloc::handle_alloc_error(layout);
+                }
+
+                std::ptr::copy_nonoverlapping(path.as_ptr(), ptr, len as usize);
+                new.large.path = ptr;
                 new.large.tag = 0xff;
-                new.large.length = len.try_into()?;
-
-                // SAFETY: If we use `.as_ptr()` here, instead of `.as_mut_ptr()`, `miri test` fails
-                //         the `.cast_mut()` in `Drop` (which is required by `Vec::from_raw_parts`).
-                new.large.path = vec.leak().as_mut_ptr();
+                new.large.length = len;
             }
         }
 
@@ -132,11 +137,10 @@ impl Drop for Position {
     fn drop(&mut self) {
         unsafe {
             if self.is_heap() {
-                let len = self.large.length as usize;
-                let ptr = self.large.path.cast_mut();
-
-                // deallocate the bytes
-                let _ = Vec::<_>::from_raw_parts(ptr, len, len);
+                std::alloc::dealloc(
+                    self.large.path.cast_mut() as *mut u8,
+                    std::alloc::Layout::array::<u32>(self.large.length as usize).unwrap(),
+                );
             }
         }
     }
