@@ -4,13 +4,28 @@
 
 
 
+## Algorithm
+
+-   Logoot
+-   LSEQ
+
+
+
+### Small String Optimization
+
+The bytes that represent the position identifier start are initially stored inline but, as they grow in the size, fallback to being store on the heap.
+
+Both [TinyVec](https://crates.io/crates/tinyvec) and [SmallVec](https://crates.io/crates/smallvec) have the same minimum size as a `Vec` — 24 bytes on 64-bit platforms. This implementation manages to get that down to 16 bytes. For a large number of strings, this savings adds up. Not just in memory usage, but **cache utilization** as well.
+
+
+
 ## Safety 
 
-This crate uses `unsafe` as it use a Rust [`union`](https://doc.rust-lang.org/reference/items/unions.html) internally to lower the overhead. However
+This crate uses `unsafe` as it use a Rust [`union`](https://doc.rust-lang.org/reference/items/unions.html) internally to accomplish this. However:
 
-1. The code is purposefully kept [small/simple](src/crdt/mod.rs) to simplify manual auditing.
-2. [Property testing](https://github.com/BurntSushi/quickcheck#readme) is done to ensure that it works on a large variety of strings.
-3. Every test is run under [Miri](https://github.com/rust-lang/miri#readme) [on every push](https://github.com/bwoods/CRDT/actions) to help check the sanity of the `unsafe` code.
+1. The `unsafe` subset of the code is purposefully kept [small/simple](src/crdt/pos/mod.rs) to simplify manual auditing.
+2. [Property testing](https://github.com/BurntSushi/quickcheck#readme) is done to ensure that it works on a large variety of values.
+3. These tests are run under [Miri](https://github.com/rust-lang/miri#readme) ()[on every push](https://github.com/bwoods/CRDT/actions)) to help confirm the correctness of the `unsafe` code.
 
 ​    ![](https://github.com/bwoods//CRDT/actions/workflows/ci.yml/badge.svg)
 
@@ -32,3 +47,11 @@ git = "https://github.com/bwoods/CRDT"
 Distributed under the terms of both the MIT license and the Apache License (Version 2.0)
 
 See [LICENSE-APACHE](LICENSE-APACHE.md) and [LICENSE-MIT](LICENSE-MIT.md) for details.
+
+
+
+## References
+
+-   Stéphane Weiss, Pascal Urso, Pascal Molli. [Logoot: A Scalable Optimistic Replication Algorithm for Collaborative Editing on P2P Networks](papers/Logoot, A Scalable Optimistic Replication Algorithm for Collaborative Editing on P2P Networks.pdf). 29th IEEE International Conference on Distributed Computing Systems - ICDCS 2009, Jun 2009, Montreal, Canada. pp.404-412, 10.1109/ICDCS.2009.75. [inria-00432368](https://inria.hal.science/inria-00432368)
+-   Brice Nédelec, Pascal Molli, Achour Mostefaoui, Emmanuel Desmontils. [LSEQ: an Adaptive Structure for Sequences in Distributed Collaborative Editing](papers/LSEQ, an Adaptive Structure for Sequences in Distributed Collaborative Editing.pdf). 13th ACM Symposium on Document Engineering (DocEng), Sep 2013, Florence, Italy. pp.37–46, 10.1145/2494266.2494278. [hal-00921633](https://hal.science/hal-00921633)
+
