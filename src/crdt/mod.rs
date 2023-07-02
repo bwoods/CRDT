@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use itertools::Itertools;
 
 pub use pos::{Error, Position};
+pub use ranges::*;
 
 mod pos;
 mod ranges;
@@ -31,7 +32,41 @@ impl Default for Storage {
     }
 }
 
+impl Extend<(Position, char)> for Storage {
+    fn extend<I: IntoIterator<Item = (Position, char)>>(&mut self, iter: I) {
+        let mut iter = iter.into_iter();
+
+        self.characters.extend(iter.by_ref());
+        self.newlines.extend(iter.by_ref().filter_map(
+            |(pos, ch)| {
+                if ch == '\n' {
+                    Some(pos)
+                } else {
+                    None
+                }
+            },
+        ));
+    }
+}
+
 impl Storage {
+    #[track_caller]
+    #[inline(never)]
+    pub fn dense(string: &str) -> Result<Self, Error> {
+        let mut new = Self::default();
+
+        new.extend(std::iter::zip(1.., string.chars()).map(|(n, ch)| {
+            assert!(
+                n < Position::last().path()[0],
+                "&str too long for dense construction."
+            );
+
+            (Position::new(0, 0, &[n]).unwrap(), ch)
+        }));
+
+        Ok(new)
+    }
+
     #[track_caller]
     #[inline(never)]
     pub fn insert(&mut self, ch: char, pos: &Position) {

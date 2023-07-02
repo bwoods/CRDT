@@ -45,7 +45,7 @@ pub enum Error {
 }
 
 impl Position {
-    pub fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, Error> {
+    pub(crate) fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, Error> {
         let len: u16 = path
             .len()
             .try_into() // let this fail *before* `alloc` is called below to avoid possible memory leaks
