@@ -14,7 +14,7 @@ impl Position {
         Position {
             small: Small {
                 path: [
-                    0xfffffffe_u32.to_le(), // `0xfe` because 0xff is used as a tag
+                    0xfffffffe_u32.to_be(), // `0xfe` because 0xff is used as a tag
                     0,                      // and the tag overlaps it in the union
                     0,
                 ],

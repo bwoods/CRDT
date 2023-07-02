@@ -26,9 +26,9 @@ struct Small {
 struct Large {
     site: u16,
     clock: u16,
-    tag: u8, // 0xff
-    pad: u8,
     length: u16, // up to 2¹⁶ 32-bit words
+    pad: u8,
+    tag: u8, // 0xff
     path: *const u32,
 }
 
@@ -145,3 +145,19 @@ impl Drop for Position {
         }
     }
 }
+#[test]
+fn tag_position() -> Result<(), Error> {
+    let valid = Position::new(0, 0, &[0xff])?;
+    assert!(valid.is_inline());
+
+    let invalid = Position::new(0, 0, &[0xffffffff])?;
+    assert!(invalid.is_heap()); // this is why this path MUST never be generated!
+
+    // …and this is why it never will be.
+    assert!(unsafe { Position::last().small.path[0] < invalid.small.path[0] });
+
+    // we can't even `Drop` it correctly
+    std::mem::forget(invalid);
+
+    Ok(())
+} //
