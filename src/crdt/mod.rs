@@ -1,15 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use tinyvec;
+use itertools::Itertools;
 
-pub use pos::Position;
+pub use pos::{Error, Position};
 
 mod pos;
+mod ranges;
 
 struct Storage {
-    characters: BTreeMap<Position, char>, // TODO: Graphemes, not `char`s
+    characters: BTreeMap<Position, char>,
     newlines: BTreeSet<Position>,
-    strategy: tinyvec::TinyVec<[bool; 6]>,
+    clock: u16,
 }
 
 impl Default for Storage {
@@ -25,17 +26,50 @@ impl Default for Storage {
         Storage {
             characters,
             newlines,
-            strategy: Default::default(),
+            clock: 0,
         }
     }
 }
 
-#[test]
-#[cfg_attr(miri, ignore)]
-fn size() {
-    let len = std::mem::size_of::<tinyvec::TinyVec<[bool; 6]>>();
-    assert_eq!(len, 24);
+impl Storage {
+    #[track_caller]
+    #[inline(never)]
+    pub fn insert(&mut self, ch: char, pos: &Position) {
+        let (right, left) = self
+            .characters
+            .range(..=pos)
+            .rev() // grab `pos` and its predecessor
+            .map(|(pos, _)| pos)
+            .tuple_windows()
+            .next()
+            .unwrap();
 
-    let len = std::mem::size_of::<tinyvec::TinyVec<[bool; 7]>>();
-    assert_eq!(len, 32);
+        let pos = Position::between(left.path(), right.path())
+            .map(|builder| {
+                Position::new(
+                    0,
+                    {
+                        self.clock = u16::wrapping_add(self.clock, 1);
+                        self.clock
+                    },
+                    &builder,
+                )
+                .unwrap()
+            })
+            .unwrap();
+
+        self.characters.insert(pos, ch);
+    }
+
+    #[inline(never)]
+    pub fn remove(&mut self, pos: &Position) -> Option<char> {
+        self.characters.remove(pos).map(|ch| {
+            if ch == '\n' {
+                let check = self.newlines.remove(pos);
+                debug_assert!(check, "A newline was missing in newlines?");
+            };
+
+            ch
+        })
+    }
 }

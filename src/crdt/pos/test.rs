@@ -1,5 +1,4 @@
 use std::mem::size_of;
-use std::num::TryFromIntError;
 
 use quickcheck_macros::quickcheck;
 
@@ -19,7 +18,7 @@ fn assumptions() {
 }
 
 #[test]
-fn boundary_size() -> Result<(), TryFromIntError> {
+fn boundary_size() -> Result<(), Error> {
     let keys = [1, 2, 3, 4];
 
     let position = Position::new(0, 0, &keys[0..3])?;
@@ -31,17 +30,13 @@ fn boundary_size() -> Result<(), TryFromIntError> {
 }
 
 #[quickcheck]
-fn property_testing(
-    site: u16,
-    clock: u16,
-    nums: Vec<std::num::NonZeroU32>,
-) -> Result<(), TryFromIntError> {
+fn property_testing(site: u16, clock: u16, nums: Vec<std::num::NonZeroU32>) -> Result<(), Error> {
     let nums: Vec<_> = nums.iter().map(|n| n.get()).collect();
 
     let position = Position::new(site, clock, &nums)?;
 
     // small positions will be zero-padded; remove them before we compare
-    let result = &position.as_slice()[..position.level()];
+    let result = &position.path()[..position.level()];
 
     assert_eq!(&nums, result);
     Ok(())

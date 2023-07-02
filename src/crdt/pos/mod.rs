@@ -1,7 +1,6 @@
 #![allow(unsafe_code)]
 
 use std::convert::TryInto;
-use std::num::TryFromIntError;
 
 pub use traits::*;
 
@@ -38,9 +37,20 @@ pub union Position {
     large: Large,
 }
 
+#[derive(Debug)]
+/// The type returned in the event of a construction error.
+pub enum Error {
+    /// Path with up to 65535 components are supported.
+    PathTooLong(usize),
+}
+
 impl Position {
-    pub fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, TryFromIntError> {
-        let len: u16 = path.len().try_into()?; // let this fail before `alloc` is called
+    pub fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, Error> {
+        let len: u16 = path
+            .len()
+            .try_into() // let this fail *before* `alloc` is called below to avoid possible memory leaks
+            .map_err(|_| Error::PathTooLong(path.len()))?;
+
         let mut new = Position {
             small: Small {
                 site,
@@ -66,14 +76,63 @@ impl Position {
 
                 std::ptr::copy_nonoverlapping(path.as_ptr(), ptr, len as usize);
                 new.large.path = ptr;
-                new.large.tag = 0xff;
                 new.large.length = len;
+                new.large.tag = 0xff; // tag it last for `Drop` safety
             }
         }
 
         Ok(new)
     }
+}
 
+impl Clone for Position {
+    /// # Safety
+    ///
+    /// The [`Position`] must have been created with [`Position::new()`]
+    /// to guarantee that is is correctly tagged as `is_heap` or `is_inline`.    
+    ///
+    fn clone(&self) -> Self {
+        unsafe {
+            if self.is_inline() {
+                Position { small: self.small }
+            } else {
+                let layout = std::alloc::Layout::array::<u32>(self.large.length as usize).unwrap();
+                let ptr = std::alloc::alloc(layout) as *mut u32;
+
+                if ptr.is_null() {
+                    std::alloc::handle_alloc_error(layout);
+                }
+
+                std::ptr::copy_nonoverlapping(self.large.path, ptr, self.large.length as usize);
+
+                Position {
+                    large: Large {
+                        path: ptr,
+                        ..self.large
+                    },
+                }
+            }
+        }
+    }
+}
+
+impl Drop for Position {
+    /// # Safety
+    ///
+    /// The [`Position`] must have been created with [`Position::new()`]
+    /// to guarantee that is is correctly tagged as `is_heap` or `is_inline`.    
+    ///
+    fn drop(&mut self) {
+        unsafe {
+            if self.is_heap() {
+                let layout = std::alloc::Layout::array::<u32>(self.large.length as usize).unwrap();
+                std::alloc::dealloc(self.large.path.cast_mut() as *mut u8, layout);
+            }
+        }
+    }
+}
+
+impl Position {
     #[inline]
     /// Returns the site id for this Position.
     pub fn site_id(&self) -> u16 {
@@ -103,21 +162,21 @@ impl Position {
     }
 
     #[inline]
-    /// Returns whether the (arbitrarily long) index was allocated on the heap.
+    /// Returns whether the position’s path was allocated on the heap.
     pub fn is_heap(&self) -> bool {
         unsafe { self.large.tag == 0xff }
     }
 
     #[inline]
     #[allow(clippy::bool_comparison)]
-    /// Returns whether the (arbitrarily long) index is held inline.
+    /// Returns whether the position is completely held inline.
     pub fn is_inline(&self) -> bool {
         self.is_heap() == false
     }
 
     #[inline]
-    /// Returns the encoded bytes of the Position’s index.
-    fn as_slice(&self) -> &[u32] {
+    /// Returns the the Position’s path.
+    pub(crate) fn path(&self) -> &[u32] {
         unsafe {
             if self.is_inline() {
                 &self.small.path
@@ -128,23 +187,6 @@ impl Position {
     }
 }
 
-impl Drop for Position {
-    /// # Safety
-    ///
-    /// The [`Position`] must have been created with [`Position::new()`]
-    /// to guarantee that is is correctly tagged as `is_heap` or `is_inline`.    
-    ///
-    fn drop(&mut self) {
-        unsafe {
-            if self.is_heap() {
-                std::alloc::dealloc(
-                    self.large.path.cast_mut() as *mut u8,
-                    std::alloc::Layout::array::<u32>(self.large.length as usize).unwrap(),
-                );
-            }
-        }
-    }
-}
 #[test]
 fn tag_position() -> Result<(), Error> {
     let valid = Position::new(0, 0, &[0xff])?;
@@ -158,6 +200,5 @@ fn tag_position() -> Result<(), Error> {
 
     // we can't even `Drop` it correctly
     std::mem::forget(invalid);
-
     Ok(())
 } //
