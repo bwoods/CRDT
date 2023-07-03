@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
-pub use pos::{path, Error, Position};
+pub(crate) use pos::path;
+pub use pos::{Error, Position};
 pub use ranges::*;
 
 mod pos;

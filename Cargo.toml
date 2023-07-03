@@ -13,3 +13,13 @@ fastrand = "2.0.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 
+[features]
+default = []
+serde = [ "serde_crate", "tinyvec/serde" ]
+
+[dependencies.serde_crate]
+package = "serde"
+features = [ "derive" ]
+default-features = false
+version = "1.0.164"
+optional = true

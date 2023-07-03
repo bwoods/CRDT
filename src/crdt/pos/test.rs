@@ -18,7 +18,7 @@ fn assumptions() {
 }
 
 #[test]
-fn boundary_size() -> Result<(), Error> {
+fn boundaries() -> Result<(), Error> {
     let keys = [1, 2, 3, 4];
 
     let position = Position::new(0, 0, &keys[0..3])?;
@@ -26,6 +26,22 @@ fn boundary_size() -> Result<(), Error> {
 
     let position = Position::new(0, 0, &keys[0..4])?;
     assert!(position.is_heap());
+    Ok(())
+}
+
+#[test]
+fn layout() -> Result<(), Error> {
+    let valid = Position::new(0, 0, &[0xff])?;
+    assert!(valid.is_inline());
+
+    let invalid = Position::new(0, 0, &[0xffffffff])?;
+    assert!(invalid.is_heap()); // this is why this path MUST never be generated!
+
+    // …and this is why it never will be.
+    assert!(unsafe { Position::last().small.path[0] < invalid.small.path[0] });
+
+    // we can't even `Drop` it correctly
+    std::mem::forget(invalid);
     Ok(())
 }
 

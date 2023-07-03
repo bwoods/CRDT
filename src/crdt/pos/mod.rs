@@ -10,6 +10,9 @@ mod traits;
 #[cfg(test)]
 mod test;
 
+#[cfg(feature = "serde")]
+mod serde;
+
 const INLINE: usize = 3;
 
 #[repr(C)]
@@ -189,19 +192,3 @@ impl Position {
         }
     }
 }
-
-#[test]
-fn tag_position() -> Result<(), Error> {
-    let valid = Position::new(0, 0, &[0xff])?;
-    assert!(valid.is_inline());
-
-    let invalid = Position::new(0, 0, &[0xffffffff])?;
-    assert!(invalid.is_heap()); // this is why this path MUST never be generated!
-
-    // …and this is why it never will be.
-    assert!(unsafe { Position::last().small.path[0] < invalid.small.path[0] });
-
-    // we can't even `Drop` it correctly
-    std::mem::forget(invalid);
-    Ok(())
-} //

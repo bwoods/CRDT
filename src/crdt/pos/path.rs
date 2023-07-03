@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use super::{Position, Small, INLINE};
 
-type Builder = tinyvec::TinyVec<[u32; INLINE]>;
+pub(crate) type Builder = tinyvec::TinyVec<[u32; INLINE]>;
 
 impl Position {
     #[inline]
