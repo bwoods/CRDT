@@ -4,7 +4,7 @@ use std::convert::TryInto;
 
 pub use traits::*;
 
-mod paths;
+pub mod path;
 mod traits;
 
 #[cfg(test)]
@@ -42,6 +42,9 @@ pub union Position {
 pub enum Error {
     /// Path with up to 65535 components are supported.
     PathTooLong(usize),
+
+    /// Strings larger than 4 GiB are not supported.
+    StringTooLarge,
 }
 
 impl Position {

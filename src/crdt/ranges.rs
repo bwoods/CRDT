@@ -72,9 +72,11 @@ where
 #[test]
 fn grapheme_segmentation() {
     let string = "👧👧🏻👧🏼👧🏽👧🏾👧🏿";
-    let _bytes = string.len(); // 44 utf-8 bytes
+    assert_eq!(string.len(), 44); // 44 utf-8 bytes
 
     let storage = Storage::dense(string).unwrap();
+    assert_eq!(storage.graphemes(..).count(), 6);
+
     let ours = storage
         .graphemes(..)
         .map(|(start, stop)| {

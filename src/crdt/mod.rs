@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
-pub use pos::{Error, Position};
+pub use pos::{path, Error, Position};
 pub use ranges::*;
 
 mod pos;
@@ -50,19 +50,46 @@ impl Extend<(Position, char)> for Storage {
 }
 
 impl Storage {
+    fn next_clock(&mut self) -> u16 {
+        self.clock = u16::wrapping_add(self.clock, 1);
+        self.clock
+    }
+
+    #[track_caller]
+    #[inline(never)]
+    pub fn sparse(string: &str) -> Result<Self, Error> {
+        if string.len() >= u32::MAX as usize {
+            return Err(Error::StringTooLarge);
+        }
+
+        let mut new = Self::default();
+        new.extend(
+            std::iter::zip(
+                path::generate(
+                    string.len() as u32, // checked above
+                    Position::first().path(),
+                    Position::last().path(),
+                ),
+                string.chars(),
+            )
+            .map(|(path, ch)| (Position::new(0, 0, &path).unwrap(), ch)),
+        );
+
+        Ok(new)
+    }
+
     #[track_caller]
     #[inline(never)]
     pub fn dense(string: &str) -> Result<Self, Error> {
+        if string.len() >= Position::last().path()[0] as usize {
+            return Err(Error::StringTooLarge);
+        }
+
         let mut new = Self::default();
-
-        new.extend(std::iter::zip(1.., string.chars()).map(|(n, ch)| {
-            assert!(
-                n < Position::last().path()[0],
-                "&str too long for dense construction."
-            );
-
-            (Position::new(0, 0, &[n]).unwrap(), ch)
-        }));
+        new.extend(
+            std::iter::zip(1.., string.chars())
+                .map(|(n, ch)| (Position::new(0, 0, &[n]).unwrap(), ch)),
+        );
 
         Ok(new)
     }
@@ -79,18 +106,8 @@ impl Storage {
             .next()
             .unwrap();
 
-        let pos = Position::between(left.path(), right.path())
-            .map(|builder| {
-                Position::new(
-                    0,
-                    {
-                        self.clock = u16::wrapping_add(self.clock, 1);
-                        self.clock
-                    },
-                    &builder,
-                )
-                .unwrap()
-            })
+        let pos = path::between(left.path(), right.path())
+            .map(|builder| Position::new(0, self.next_clock(), &builder).unwrap())
             .unwrap();
 
         self.characters.insert(pos, ch);
