@@ -16,14 +16,15 @@ impl Position {
     pub(crate) fn last() -> Position {
         Position {
             small: Small {
-                path: [
-                    0xfffffffe_u32.to_be(), // `0xfe` because 0xff is used as a tag
-                    0,                      // and the tag overlaps it in the union
-                    0,
-                ],
+                path: [Self::level_one_max(), 0, 0],
                 ..Default::default()
             },
         }
+    }
+
+    pub(crate) fn level_one_max() -> u32 {
+        // • `0xfe` because 0xff is used as a tag and the tag overlaps level one in the union
+        0xfffffffe_u32.to_be()
     }
 }
 

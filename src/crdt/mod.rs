@@ -38,11 +38,20 @@ impl Extend<(Position, char)> for Storage {
         let mut iter = iter.into_iter();
 
         self.characters.extend(iter.by_ref());
-        self.newlines.extend(
-            iter.by_ref()
-                .filter(|(_, ch)| *ch == '\n')
-                .map(|(pos, _)| pos),
-        );
+        self.newlines
+            .extend(iter.filter(|(_, ch)| *ch == '\n').map(|(pos, _)| pos));
+    }
+}
+
+impl FromIterator<char> for Storage {
+    fn from_iter<T: IntoIterator<Item = char>>(iter: T) -> Self {
+        let mut new = Self::default();
+        new.extend(std::iter::zip(1.., iter).map(|(n, ch)| {
+            assert!(n < Position::level_one_max());
+            (Position::new(0, 0, &[n]).unwrap(), ch)
+        }));
+
+        new
     }
 }
 
@@ -67,7 +76,7 @@ impl Storage {
     /// Constructs a CRDT using the Logoot algorithm.
     /// In the future, the LSEQ algorithm may be adopted as well
     pub fn sparse(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::last().path()[0] as usize {
+        if str.len() >= Position::level_one_max() as usize {
             return Err(Error::StringTooLarge);
         }
 
@@ -96,17 +105,11 @@ impl Storage {
     ///
     /// Use [`Storage::try_from`] (or call [`Storage::sparse`] directly) instead.
     pub fn dense(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::last().path()[0] as usize {
+        if str.len() >= Position::level_one_max() as usize {
             return Err(Error::StringTooLarge);
         }
 
-        let mut new = Self::default();
-        new.extend(
-            std::iter::zip(1.., str.chars())
-                .map(|(n, ch)| (Position::new(0, 0, &[n]).unwrap(), ch)),
-        );
-
-        Ok(new)
+        Ok(str.chars().collect())
     }
 
     #[track_caller]

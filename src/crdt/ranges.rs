@@ -23,6 +23,10 @@ impl Storage {
         self.characters.range(range).skip(skip)
     }
 
+    pub fn string(&self, range: impl RangeBounds<Position>) -> String {
+        self.characters(range).map(|(_, ch)| ch).collect()
+    }
+
     pub fn graphemes<'a>(
         &'a self,
         range: impl RangeBounds<Position> + 'a,
