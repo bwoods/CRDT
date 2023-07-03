@@ -37,28 +37,36 @@ impl Extend<(Position, char)> for Storage {
         let mut iter = iter.into_iter();
 
         self.characters.extend(iter.by_ref());
-        self.newlines.extend(iter.by_ref().filter_map(
-            |(pos, ch)| {
-                if ch == '\n' {
-                    Some(pos)
-                } else {
-                    None
-                }
-            },
-        ));
+        self.newlines.extend(
+            iter.by_ref()
+                .filter(|(_, ch)| *ch == '\n')
+                .map(|(pos, _)| pos),
+        );
     }
 }
 
 impl Storage {
+    /// The `clock` is incremented every insert to avoid the
+    /// [ABA problem](https://en.wikipedia.org/wiki/ABA_problem)
+    /// inherent in an insert-delete-insert at the same location.
     fn next_clock(&mut self) -> u16 {
         self.clock = u16::wrapping_add(self.clock, 1);
         self.clock
     }
 
+    #[inline(always)]
+    /// The preferred constructor for [`Storage`] objects.
+    /// Uses [`sparse`] encoding of the positions for performance.
+    fn try_from(str: impl AsRef<str>) -> Result<Self, Error> {
+        Self::sparse(str.as_ref())
+    }
+
     #[track_caller]
     #[inline(never)]
-    pub fn sparse(string: &str) -> Result<Self, Error> {
-        if string.len() >= u32::MAX as usize {
+    /// Constructs a CRDT using the Logoot algorithm.
+    /// In the future, the LSEQ algorithm may be adopted as well
+    pub fn sparse(str: &str) -> Result<Self, Error> {
+        if str.len() >= Position::last().path()[0] as usize {
             return Err(Error::StringTooLarge);
         }
 
@@ -66,11 +74,11 @@ impl Storage {
         new.extend(
             std::iter::zip(
                 path::generate(
-                    string.len() as u32, // checked above
+                    str.len() as u32, // checked above
                     Position::first().path(),
                     Position::last().path(),
                 ),
-                string.chars(),
+                str.chars(),
             )
             .map(|(path, ch)| (Position::new(0, 0, &path).unwrap(), ch)),
         );
@@ -80,14 +88,20 @@ impl Storage {
 
     #[track_caller]
     #[inline(never)]
-    pub fn dense(string: &str) -> Result<Self, Error> {
-        if string.len() >= Position::last().path()[0] as usize {
+    /// Constructs a CRDT using only level-1 paths, and with **no** space in between them.
+    ///
+    /// It exists primarily for benchmarking (showing how badly this mode scales) and
+    /// for testing and debugging the implementation.
+    ///
+    /// Use [`Storage::try_from`] (or call [`Storage::sparse`] directly) instead.
+    pub fn dense(str: &str) -> Result<Self, Error> {
+        if str.len() >= Position::last().path()[0] as usize {
             return Err(Error::StringTooLarge);
         }
 
         let mut new = Self::default();
         new.extend(
-            std::iter::zip(1.., string.chars())
+            std::iter::zip(1.., str.chars())
                 .map(|(n, ch)| (Position::new(0, 0, &[n]).unwrap(), ch)),
         );
 
@@ -107,7 +121,7 @@ impl Storage {
             .unwrap();
 
         let pos = path::between(left.path(), right.path())
-            .map(|builder| Position::new(0, self.next_clock(), &builder).unwrap())
+            .map(|builder| Position::new(pos.site_id(), pos.clock(), &builder).unwrap())
             .unwrap();
 
         self.characters.insert(pos, ch);

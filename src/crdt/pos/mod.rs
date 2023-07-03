@@ -143,13 +143,13 @@ impl Position {
     }
 
     #[inline]
-    /// Returns the site id for this Position.
-    fn clock(&self) -> u16 {
+    /// Returns the timestamp for when this Position was created.
+    pub(crate) fn clock(&self) -> u16 {
         unsafe { self.small.clock }
     }
 
     #[inline]
-    /// Returns the site id for this Position.
+    /// Returns the length of this Position.
     fn level(&self) -> usize {
         unsafe {
             if self.is_heap() {
