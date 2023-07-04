@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use itertools::Itertools;
 
 pub(crate) use pos::path;
-pub use pos::{Error, Position};
+pub use pos::{Error, Position, Strategy};
 pub use ranges::*;
 
 mod pos;
@@ -28,7 +28,7 @@ impl Default for Storage {
         Storage {
             characters,
             newlines,
-            clock: 0,
+            clock: Default::default(),
         }
     }
 }
@@ -44,10 +44,14 @@ impl Extend<(Position, char)> for Storage {
 }
 
 impl FromIterator<char> for Storage {
-    fn from_iter<T: IntoIterator<Item = char>>(iter: T) -> Self {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = char>,
+        // T::IntoIter: ExactSizeIterator,
+    {
         let mut new = Self::default();
         new.extend(std::iter::zip(1.., iter).map(|(n, ch)| {
-            assert!(n < Position::level_one_max());
+            assert!(n < Position::level_one_end_bound());
             (Position::new(0, 0, &[n]).unwrap(), ch)
         }));
 
@@ -76,7 +80,7 @@ impl Storage {
     /// Constructs a CRDT using the Logoot algorithm.
     /// In the future, the LSEQ algorithm may be adopted as well
     pub fn sparse(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::level_one_max() as usize {
+        if str.len() >= Position::level_one_end_bound() as usize {
             return Err(Error::StringTooLarge);
         }
 
@@ -105,7 +109,7 @@ impl Storage {
     ///
     /// Use [`Storage::try_from`] (or call [`Storage::sparse`] directly) instead.
     pub fn dense(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::level_one_max() as usize {
+        if str.len() >= Position::level_one_end_bound() as usize {
             return Err(Error::StringTooLarge);
         }
 

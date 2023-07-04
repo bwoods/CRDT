@@ -2,6 +2,7 @@
 
 use std::convert::TryInto;
 
+pub use strategy::Strategy;
 pub use traits::*;
 
 pub mod path;
@@ -10,8 +11,10 @@ mod traits;
 #[cfg(test)]
 mod test;
 
+mod algorithm;
 #[cfg(feature = "serde")]
 mod serde;
+mod strategy;
 
 const INLINE: usize = 3;
 
