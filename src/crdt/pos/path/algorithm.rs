@@ -70,7 +70,7 @@ impl Algorithm {
 
         std::iter::repeat_with(move || loop {
             let mut lhs = *(left.get(level).unwrap_or(&u32::MIN)) as usize;
-            let rhs = *(right.get(level).unwrap_or(&Position::end_bound(level))) as usize;
+            let rhs = *(right.get(level).unwrap_or(&u32::MAX)) as usize;
             debug_assert!(lhs < rhs);
 
             lhs += step * index;

@@ -149,7 +149,7 @@ impl Storage {
 }
 
 #[test]
-fn invalid_insert() {
+fn invalid_insert_position() {
     let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
 
     let str = "abc";

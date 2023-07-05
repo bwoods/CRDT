@@ -50,7 +50,7 @@ fn property_testing(site: u16, clock: u16, nums: Vec<std::num::NonZeroU32>) {
     let position = Position::new(site, clock, &nums);
 
     // small positions will be zero-padded; remove them before we compare
-    let result = &position.path()[..position.level()];
+    let result = &position.path();
 
     assert_eq!(&nums, result);
 }
