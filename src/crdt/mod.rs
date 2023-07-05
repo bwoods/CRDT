@@ -89,17 +89,17 @@ impl Extend<char> for Storage {
 
 impl Storage {
     pub fn with_strategy(strategy: Strategy) -> Self {
-        let mut new = Self::default();
-        new.algorithm = Algorithm::with_strategy(strategy);
-
-        new
+        Storage {
+            algorithm: Algorithm::with_strategy(strategy),
+            ..Default::default()
+        }
     }
 
     pub fn with_seed(seed: u64) -> Self {
-        let mut new = Self::default();
-        new.algorithm = Algorithm::with_seed(seed);
-
-        new
+        Storage {
+            algorithm: Algorithm::with_seed(seed),
+            ..Default::default()
+        }
     }
 
     #[inline(always)]
@@ -109,7 +109,8 @@ impl Storage {
 
     #[track_caller]
     #[inline(never)]
-    pub fn insert_unchecked(&mut self, ch: char, pos: &Position) {
+    #[must_use]
+    pub fn insert(&mut self, ch: char, pos: &Position) -> bool {
         let (right, left) = self
             .characters
             .range(..=pos)
@@ -119,10 +120,14 @@ impl Storage {
             .next()
             .unwrap();
 
-        let path = self.algorithm.generate_one(left.path(), right.path());
-        let pos = Position::new(pos.site_id(), pos.clock(), &path);
+        if right == pos {
+            let path = self.algorithm.generate_one(left.path(), right.path());
+            let pos = Position::new(pos.site_id(), pos.clock(), &path);
 
-        self.characters.insert(pos, ch);
+            self.characters.insert(pos, ch).is_none()
+        } else {
+            false
+        }
     }
 
     #[inline(never)]
@@ -147,22 +152,24 @@ impl Storage {
 }
 
 #[test]
-#[ignore]
 fn invalid_insert() {
     let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
 
     let str = "abc";
     storage.extend(str.chars());
 
-    // create a gap
+    // even with a gap…
     let pos = Position::new(0, storage.clock, &[5]);
     storage.characters.insert(pos, 'e');
 
-    println!("btree: {:?}", &storage.characters);
+    // attempt insert before a non-existent key fail…
+    let pos = Position::new(0, storage.clock, &[4]);
+    assert_eq!(storage.insert('d', &pos), false);
 
-    // insert before a non-existent key
-    let pos = Position::new(0, 0, &[4]);
-    storage.insert_unchecked('d', &pos);
+    // using a valid ket worls
+    let pos = Position::new(0, storage.clock, &[5]);
+    assert_eq!(storage.insert('d', &pos), true);
 
-    println!("btree: {:?}", &storage.characters);
+    let string = storage.string(..);
+    assert_eq!(string, "abcde");
 }
