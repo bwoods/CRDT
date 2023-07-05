@@ -6,13 +6,6 @@ use unicode_segmentation::UnicodeSegmentation;
 use super::{Position, Storage};
 
 impl Storage {
-    pub fn lines(
-        &self,
-        range: impl RangeBounds<Position>,
-    ) -> impl Iterator<Item = (&Position, &Position)> {
-        self.newlines.range(range).tuple_windows()
-    }
-
     pub fn characters(
         &self,
         range: impl RangeBounds<Position>,
@@ -20,7 +13,13 @@ impl Storage {
         // skip `Position::first()` as is it an `Exclusive` bound
         let skip = (range.start_bound() == Unbounded) as usize;
 
-        self.characters.range(range).skip(skip)
+        // drop `Position::last()` as is it an `Exclusive` bound
+        let drop = (range.end_bound() == Unbounded) as usize;
+
+        self.characters
+            .range(range)
+            .dropping(skip)
+            .dropping_back(drop)
     }
 
     pub fn string(&self, range: impl RangeBounds<Position>) -> String {
@@ -31,11 +30,23 @@ impl Storage {
         &'a self,
         range: impl RangeBounds<Position> + 'a,
     ) -> impl Iterator<Item = (&Position, &Position)> + 'a {
+        // skip `Position::first()` as is it an `Exclusive` bound
+        let skip = (range.start_bound() == Unbounded) as usize;
+
+        // preserves `Position::last()` as is it needed by `tuple_windows()`
         GraphemeBoundary {
-            iter: self.characters(range),
+            iter: self.characters.range(range).dropping(skip),
             string: Default::default(),
         }
         .tuple_windows()
+    }
+
+    pub fn lines(
+        &self,
+        range: impl RangeBounds<Position>,
+    ) -> impl Iterator<Item = (&Position, &Position)> {
+        // Doesn’t need the `range()` function it uses the `newlines` index directly
+        self.newlines.range(range).tuple_windows()
     }
 }
 
@@ -78,7 +89,10 @@ fn grapheme_segmentation() {
     let string = "👧👧🏻👧🏼👧🏽👧🏾👧🏿";
     assert_eq!(string.len(), 44); // 44 utf-8 bytes
 
-    let storage = Storage::dense(string).unwrap();
+    let mut storage = Storage::with_strategy(super::Strategy::Boundary);
+    storage.extend(string.chars());
+
+    assert_eq!(storage.string(..), string);
     assert_eq!(storage.graphemes(..).count(), 6);
 
     let ours = storage
@@ -88,12 +102,12 @@ fn grapheme_segmentation() {
             string.extend(storage.characters(start..stop).map(|(_, ch)| ch));
             string
         })
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     let theirs = string
         .grapheme_indices(true)
         .map(|(_, str)| str.to_owned())
-        .collect::<Vec<_>>();
+        .collect_vec();
 
     assert_eq!(theirs, ours);
 }

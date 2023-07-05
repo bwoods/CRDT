@@ -2,24 +2,29 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
-pub(crate) use pos::path;
-pub use pos::{Error, Position, Strategy};
+pub use path::algorithm::Strategy;
+pub use pos::path;
+pub use pos::{Algorithm, Position};
 pub use ranges::*;
+
+use super::path::Builder;
 
 mod pos;
 mod ranges;
 
-struct Storage {
+pub struct Storage {
     characters: BTreeMap<Position, char>,
     newlines: BTreeSet<Position>,
+    algorithm: Algorithm,
     clock: u16,
+    site: u16,
 }
 
 impl Default for Storage {
     fn default() -> Self {
         let mut characters = BTreeMap::<Position, char>::default();
-        characters.insert(Position::first(), '\0');
-        characters.insert(Position::last(), '\0');
+        characters.insert(Position::first(), '\u{2402}');
+        characters.insert(Position::last(), '\u{2403}');
 
         let mut newlines = BTreeSet::<Position>::default();
         newlines.insert(Position::first());
@@ -28,97 +33,83 @@ impl Default for Storage {
         Storage {
             characters,
             newlines,
+            algorithm: Default::default(),
             clock: Default::default(),
+            site: Default::default(),
         }
     }
 }
 
-impl Extend<(Position, char)> for Storage {
-    fn extend<I: IntoIterator<Item = (Position, char)>>(&mut self, iter: I) {
-        let mut iter = iter.into_iter();
+impl FromIterator<char> for Storage {
+    fn from_iter<T: IntoIterator<Item = char>>(iter: T) -> Self {
+        let mut new = Self::default();
 
+        let chars = iter.into_iter();
+        let positions = new
+            .algorithm
+            .generate(&path::FIRST, &path::LAST)
+            .map(|path| (Position::new(new.site, new.clock, &path)));
+
+        let mut iter = positions.zip(chars);
+        new.characters.extend(iter.by_ref());
+        new.newlines
+            .extend(iter.filter(|(_, ch)| *ch == '\n').map(|(pos, _)| pos));
+
+        new
+    }
+}
+
+impl Extend<char> for Storage {
+    fn extend<I: IntoIterator<Item = char>>(&mut self, iter: I) {
+        let chars = iter.into_iter();
+        let left = Builder::from_iter(
+            self.characters
+                .range(..)
+                .rev()
+                .skip(1) // skip `Position::last()` as is it an `Exclusive` bound
+                .map(|(pos, _)| pos.path())
+                .next()
+                .unwrap()
+                .iter()
+                .cloned(),
+        );
+
+        let clock = self.next_clock();
+        let positions = self
+            .algorithm
+            .generate(&left, &path::LAST)
+            .map(|path| (Position::new(self.site, clock, &path)));
+
+        let mut iter = positions.zip(chars);
         self.characters.extend(iter.by_ref());
         self.newlines
             .extend(iter.filter(|(_, ch)| *ch == '\n').map(|(pos, _)| pos));
     }
 }
 
-impl FromIterator<char> for Storage {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = char>,
-        // T::IntoIter: ExactSizeIterator,
-    {
+impl Storage {
+    pub fn with_strategy(strategy: Strategy) -> Self {
         let mut new = Self::default();
-        new.extend(std::iter::zip(1.., iter).map(|(n, ch)| {
-            assert!(n < Position::level_one_end_bound());
-            (Position::new(0, 0, &[n]).unwrap(), ch)
-        }));
+        new.algorithm = Algorithm::with_strategy(strategy);
 
         new
     }
-}
 
-impl Storage {
-    /// The `clock` is incremented every insert to avoid the
-    /// [ABA problem](https://en.wikipedia.org/wiki/ABA_problem)
-    /// inherent in an insert-delete-insert at the same location.
-    fn next_clock(&mut self) -> u16 {
-        self.clock = u16::wrapping_add(self.clock, 1);
-        self.clock
+    pub fn with_seed(seed: u64) -> Self {
+        let mut new = Self::default();
+        new.algorithm = Algorithm::with_seed(seed);
+
+        new
     }
 
     #[inline(always)]
-    /// The preferred constructor for [`Storage`] objects.
-    /// Uses [`sparse`] encoding of the positions for performance.
-    fn try_from(str: impl AsRef<str>) -> Result<Self, Error> {
-        Self::sparse(str.as_ref())
+    fn from(str: impl AsRef<str>) -> Self {
+        Self::from_iter(str.as_ref().chars())
     }
 
     #[track_caller]
     #[inline(never)]
-    /// Constructs a CRDT using the Logoot algorithm.
-    /// In the future, the LSEQ algorithm may be adopted as well
-    pub fn sparse(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::level_one_end_bound() as usize {
-            return Err(Error::StringTooLarge);
-        }
-
-        let mut new = Self::default();
-        new.extend(
-            std::iter::zip(
-                path::generate(
-                    str.len() as u32, // checked above
-                    Position::first().path(),
-                    Position::last().path(),
-                ),
-                str.chars(),
-            )
-            .map(|(path, ch)| (Position::new(0, 0, &path).unwrap(), ch)),
-        );
-
-        Ok(new)
-    }
-
-    #[track_caller]
-    #[inline(never)]
-    /// Constructs a CRDT using only level-1 paths, and with **no** space in between them.
-    ///
-    /// It exists primarily for benchmarking (showing how badly this mode scales) and
-    /// for testing and debugging the implementation.
-    ///
-    /// Use [`Storage::try_from`] (or call [`Storage::sparse`] directly) instead.
-    pub fn dense(str: &str) -> Result<Self, Error> {
-        if str.len() >= Position::level_one_end_bound() as usize {
-            return Err(Error::StringTooLarge);
-        }
-
-        Ok(str.chars().collect())
-    }
-
-    #[track_caller]
-    #[inline(never)]
-    pub fn insert(&mut self, ch: char, pos: &Position) {
+    pub fn insert_unchecked(&mut self, ch: char, pos: &Position) {
         let (right, left) = self
             .characters
             .range(..=pos)
@@ -128,9 +119,8 @@ impl Storage {
             .next()
             .unwrap();
 
-        let pos = path::between(left.path(), right.path())
-            .map(|builder| Position::new(pos.site_id(), pos.clock(), &builder).unwrap())
-            .unwrap();
+        let path = self.algorithm.generate_one(left.path(), right.path());
+        let pos = Position::new(pos.site_id(), pos.clock(), &path);
 
         self.characters.insert(pos, ch);
     }
@@ -146,4 +136,33 @@ impl Storage {
             ch
         })
     }
+
+    /// The `clock` is incremented every insert to avoid the
+    /// [ABA problem](https://en.wikipedia.org/wiki/ABA_problem)
+    /// inherent in an insert-delete-insert at the same location.
+    fn next_clock(&mut self) -> u16 {
+        self.clock = u16::wrapping_add(self.clock, 1);
+        self.clock
+    }
+}
+
+#[test]
+#[ignore]
+fn invalid_insert() {
+    let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
+
+    let str = "abc";
+    storage.extend(str.chars());
+
+    // create a gap
+    let pos = Position::new(0, storage.clock, &[5]);
+    storage.characters.insert(pos, 'e');
+
+    println!("btree: {:?}", &storage.characters);
+
+    // insert before a non-existent key
+    let pos = Position::new(0, 0, &[4]);
+    storage.insert_unchecked('d', &pos);
+
+    println!("btree: {:?}", &storage.characters);
 }

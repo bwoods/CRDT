@@ -1,8 +1,6 @@
 #![allow(unsafe_code)]
 
-use std::convert::TryInto;
-
-pub use strategy::Strategy;
+pub use path::algorithm::Algorithm;
 pub use traits::*;
 
 pub mod path;
@@ -11,10 +9,8 @@ mod traits;
 #[cfg(test)]
 mod test;
 
-mod algorithm;
 #[cfg(feature = "serde")]
 mod serde;
-mod strategy;
 
 const INLINE: usize = 3;
 
@@ -43,22 +39,9 @@ pub union Position {
     large: Large,
 }
 
-#[derive(Debug)]
-/// The type returned in the event of a construction error.
-pub enum Error {
-    /// Path with up to 65535 components are supported.
-    PathTooLong(usize),
-
-    /// Strings larger than 4 GiB are not supported.
-    StringTooLarge,
-}
-
 impl Position {
-    pub(crate) fn new(site: u16, clock: u16, path: &[u32]) -> Result<Position, Error> {
-        let len: u16 = path
-            .len()
-            .try_into() // let this fail *before* `alloc` is called below to avoid possible memory leaks
-            .map_err(|_| Error::PathTooLong(path.len()))?;
+    pub(crate) fn new(site: u16, clock: u16, path: &[u32]) -> Position {
+        let len: u16 = path.len() as u16;
 
         let mut new = Position {
             small: Small {
@@ -90,7 +73,7 @@ impl Position {
             }
         }
 
-        Ok(new)
+        new
     }
 }
 
@@ -188,7 +171,7 @@ impl Position {
     pub(crate) fn path(&self) -> &[u32] {
         unsafe {
             if self.is_inline() {
-                &self.small.path
+                &self.small.path[..self.level()]
             } else {
                 std::slice::from_raw_parts(self.large.path, self.large.length as usize)
             }

@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
 use super::Position;
@@ -34,5 +35,15 @@ impl Hash for Position {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.path().hash(state)
+    }
+}
+
+impl Debug for Position {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Position")
+            .field("site", &self.site_id())
+            .field("clock", &self.clock())
+            .field("path", &self.path())
+            .finish()
     }
 }
