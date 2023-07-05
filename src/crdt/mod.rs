@@ -110,19 +110,19 @@ impl Storage {
     #[track_caller]
     #[inline(never)]
     #[must_use]
-    pub fn insert(&mut self, ch: char, pos: &Position) -> bool {
+    pub fn insert(&mut self, ch: char, before: &Position) -> bool {
         let (right, left) = self
             .characters
-            .range(..=pos)
+            .range(..=before)
             .rev() // grab `pos` and its predecessor
             .map(|(pos, _)| pos)
             .tuple_windows()
             .next()
             .unwrap();
 
-        if right == pos {
+        if right == before {
             let path = self.algorithm.generate_one(left.path(), right.path());
-            let pos = Position::new(pos.site_id(), pos.clock(), &path);
+            let pos = Position::new(self.site, self.next_clock(), &path);
 
             self.characters.insert(pos, ch).is_none()
         } else {
@@ -131,15 +131,12 @@ impl Storage {
     }
 
     #[inline(never)]
-    pub fn remove(&mut self, pos: &Position) -> Option<char> {
-        self.characters.remove(pos).map(|ch| {
-            if ch == '\n' {
-                let check = self.newlines.remove(pos);
-                debug_assert!(check, "A newline was missing in newlines?");
-            };
-
-            ch
-        })
+    pub fn remove(&mut self, pos: &Position) -> bool {
+        self.characters
+            .remove(pos)
+            .filter(|ch| *ch == '\n')
+            .map(|_| self.newlines.remove(pos))
+            .unwrap_or(false)
     }
 
     /// The `clock` is incremented every insert to avoid the
