@@ -107,7 +107,6 @@ impl Storage {
         Self::from_iter(str.as_ref().chars())
     }
 
-    #[inline(never)]
     #[must_use]
     pub fn insert(&mut self, ch: char, before: &Position) -> bool {
         if let Some((right, left)) = self
@@ -135,7 +134,6 @@ impl Storage {
         false
     }
 
-    #[inline(never)]
     pub fn remove(&mut self, pos: &Position) -> bool {
         self.characters
             .remove(pos)
@@ -144,6 +142,7 @@ impl Storage {
             .unwrap_or(false)
     }
 
+    #[inline]
     /// The `clock` is incremented every insert to avoid the
     /// [ABA problem](https://en.wikipedia.org/wiki/ABA_problem)
     /// inherent in an insert-delete-insert at the same location.
