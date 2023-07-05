@@ -1,6 +1,5 @@
 use super::allocator::Allocator;
 use super::Builder;
-use super::Position;
 
 pub enum Strategy {
     /// The naive strategy: always choose the next position after p in (p, q).
@@ -52,6 +51,7 @@ impl Algorithm {
     }
 
     pub(crate) fn generate_one<'a>(&'a mut self, left: &'a [u32], right: &'a [u32]) -> Builder {
+        // SAFETY: `generate()` will always produce a `Position`
         self.generate(left, right).next().unwrap()
     }
 
@@ -101,6 +101,8 @@ impl Algorithm {
 #[test]
 #[ignore]
 fn exhausting_level_zero() {
+    use super::Position;
+
     let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
 
     // place a letter near the end of level zero

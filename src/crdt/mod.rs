@@ -1,10 +1,10 @@
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
 pub use path::algorithm::Strategy;
-pub use pos::path;
-pub use pos::{Algorithm, Position};
+pub use pos::{path, Algorithm, Position};
 pub use ranges::*;
 
 use super::path::Builder;
@@ -69,7 +69,7 @@ impl Extend<char> for Storage {
                 .skip(1) // skip `Position::last()` as is it an `Exclusive` bound
                 .map(|(pos, _)| pos.path())
                 .next()
-                .unwrap()
+                .unwrap() // SAFETY: iterator will always have `Position::first()`
                 .iter()
                 .cloned(),
         );
@@ -107,27 +107,32 @@ impl Storage {
         Self::from_iter(str.as_ref().chars())
     }
 
-    #[track_caller]
     #[inline(never)]
     #[must_use]
     pub fn insert(&mut self, ch: char, before: &Position) -> bool {
-        let (right, left) = self
+        if let Some((right, left)) = self
             .characters
             .range(..=before)
             .rev() // grab `pos` and its predecessor
             .map(|(pos, _)| pos)
             .tuple_windows()
             .next()
-            .unwrap();
+        {
+            if right == before {
+                let path = self.algorithm.generate_one(left.path(), right.path());
+                let pos = Position::new(self.site, self.next_clock(), &path);
 
-        if right == before {
-            let path = self.algorithm.generate_one(left.path(), right.path());
-            let pos = Position::new(self.site, self.next_clock(), &path);
-
-            self.characters.insert(pos, ch).is_none()
-        } else {
-            false
+                return match self.characters.entry(pos) {
+                    Entry::Occupied(_) => false, // CRDTs do not replace values; positions must remain unique
+                    Entry::Vacant(entry) => {
+                        entry.insert(ch);
+                        true
+                    }
+                };
+            }
         }
+
+        false
     }
 
     #[inline(never)]
@@ -152,18 +157,21 @@ impl Storage {
 fn invalid_insert_position() {
     let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
 
+    // inserting before `Position::first()` always fails
+    assert_eq!(storage.insert('d', &Position::first()), false);
+
     let str = "abc";
     storage.extend(str.chars());
 
-    // even with a gap…
+    // Note, that even with a gap between keys…
     let pos = Position::new(0, storage.clock, &[5]);
     storage.characters.insert(pos, 'e');
 
-    // attempt insert before a non-existent key fail…
+    // attempting to insert before a non-existent key fails…
     let pos = Position::new(0, storage.clock, &[4]);
     assert_eq!(storage.insert('d', &pos), false);
 
-    // using a valid ket worls
+    // while using the appropriate key works.
     let pos = Position::new(0, storage.clock, &[5]);
     assert_eq!(storage.insert('d', &pos), true);
 
