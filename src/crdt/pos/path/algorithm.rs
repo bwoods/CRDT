@@ -51,13 +51,18 @@ impl Algorithm {
         new
     }
 
+    /// Generates a path between the given `left` and `right` boundaries.
+    pub(crate) fn generate_one<'a>(&'a mut self, left: &'a [u32], right: &'a [u32]) -> Builder {
+        // SAFETY: `generate()` will always return a value
+        self.generate(left, right).next().unwrap()
+    }
+
     /// Creates an iterator that generates paths between the given `left` and `right` boundaries.
     pub(crate) fn generate<'a>(
         &'a mut self,
         left: &'a [u32],
         right: &'a [u32],
     ) -> impl Iterator<Item = Builder> + 'a {
-        let mut path = Builder::from(left);
         let mut level = if let Some(diff) = //
             diff_with(left, right, |p, q| *p == *q)
         {
@@ -67,40 +72,28 @@ impl Algorithm {
                 Diff::Shorter(..) => unreachable!(), // `left` can’t match AND be longer
             }
         } else {
+            // this is where the “Logoot interleaving anomaly” occurs
             left.len()
         };
 
-        std::iter::repeat_with(move || {
-            path = self.alloc(&path, right, &mut level);
-            return path.clone();
-        })
-    }
+        let mut left = Builder::from(left);
 
-    #[inline]
-    /// Generates a path between the given `left` and `right` boundaries.
-    fn generate_one<'a>(&'a mut self, left: &'a [u32], right: &'a [u32]) -> Builder {
-        // SAFETY: `generate()` will always return a value
-        self.generate(left, right).next().unwrap()
-    }
+        std::iter::repeat_with(move || loop {
+            let lhs = 1 + *(left.get(level).unwrap_or(&u32::MIN));
+            let rhs = *(right.get(level).unwrap_or(&u32::MAX));
 
-    ///
-    fn alloc(&mut self, left: &[u32], right: &[u32], level: &mut usize) -> Builder {
-        loop {
-            let lhs = 1 + *(left.get(*level).unwrap_or(&u32::MIN));
-            let rhs = *(right.get(*level).unwrap_or(&u32::MAX));
-
-            if rhs - lhs < 1 {
-                *level += 1;
+            if lhs == rhs {
+                level += 1;
                 continue;
             }
 
-            let range = self.allocator.reduce_range(lhs..rhs, *level, &mut self.rng);
+            let range = self.allocator.reduce_range(lhs..rhs, level, &mut self.rng);
             let val = self.rng.u32(range);
 
-            let mut path = Builder::from(&left[..*level]);
-            path.push(val);
-            return path;
-        }
+            left = Builder::from(&left[..level]);
+            left.push(val);
+            return left.clone();
+        })
     }
 }
 
@@ -115,10 +108,33 @@ fn exhausting_level_zero() {
     storage.characters.insert(pos, '0');
 
     // now add more characters than fit in the remaining space
-    let string = "abcdefg";
+    let string = "abcdef";
     storage.extend(string.chars());
 
     // for ch in storage.characters(..) {
     //     println!("{:?} {:?}", ch.0, ch.1);
     // }
+}
+
+#[test]
+#[ignore]
+/// Logoot/LSEQ have a weakness to distributed edits at the same Position  
+///
+/// https://stackoverflow.com/q/45722742
+fn interleaving_anomaly() {
+    let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
+
+    let a = crate::Position::new(0, 0, &[1]);
+    let c = crate::Position::new(1, 0, &[1]);
+
+    storage.characters.insert(a, 'a');
+    storage.characters.insert(c.clone(), 'c');
+
+    // try to insert 'b' between a & c…
+    let _ = storage.insert('b', &c);
+
+    // 'c' will be second, rather than third
+    for ch in storage.characters(..) {
+        println!("{:?} {:?}", ch.0, ch.1);
+    }
 }
