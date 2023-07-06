@@ -1,6 +1,5 @@
 #![allow(unsafe_code)]
 
-pub use path::algorithm::Algorithm;
 pub use traits::*;
 
 pub mod path;

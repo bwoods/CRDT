@@ -3,11 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
-pub use path::algorithm::Strategy;
-pub use pos::{path, Algorithm, Position};
+use pos::path::{self, algorithm::Algorithm, Builder};
+pub use pos::{path::algorithm::Strategy, Position};
 pub use ranges::*;
-
-use super::path::Builder;
 
 mod pos;
 mod ranges;

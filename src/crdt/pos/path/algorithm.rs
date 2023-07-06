@@ -78,7 +78,7 @@ impl Algorithm {
 
     #[inline]
     /// Generates a path between the given `left` and `right` boundaries.
-    pub fn generate_one<'a>(&'a mut self, left: &'a [u32], right: &'a [u32]) -> Builder {
+    fn generate_one<'a>(&'a mut self, left: &'a [u32], right: &'a [u32]) -> Builder {
         // SAFETY: `generate()` will always return a value
         self.generate(left, right).next().unwrap()
     }
