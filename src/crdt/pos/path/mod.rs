@@ -6,7 +6,11 @@ mod allocator;
 pub(crate) type Builder = tinyvec::TinyVec<[u32; INLINE]>;
 
 pub(crate) const FIRST: [u32; 1] = [0];
-pub(crate) const LAST: [u32; 3] = [Position::end_bound(0), 0, 0];
+pub(crate) const LAST: [u32; 3] = [
+    Position::end_bound(0),
+    Position::end_bound(1),
+    Position::end_bound(2),
+];
 
 impl Position {
     #[inline]
