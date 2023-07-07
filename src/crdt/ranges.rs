@@ -3,7 +3,7 @@ use std::{ops::Bound::Unbounded, ops::RangeBounds};
 use itertools::Itertools;
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::{Position, Storage};
+use crate::{Position, Storage};
 
 impl Storage {
     pub fn characters(

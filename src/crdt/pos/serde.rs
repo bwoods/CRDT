@@ -1,7 +1,7 @@
 use serde_crate::{Deserialize, Serialize};
 
-use super::path::Builder;
-use super::Position;
+use crate::crdt::pos::path::Builder;
+use crate::Position;
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(crate = "serde_crate")]

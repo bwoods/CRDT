@@ -1,20 +1,6 @@
 use itertools::{diff_with, Diff};
 
-use super::allocator::Allocator;
-use super::Builder;
-
-pub enum Strategy {
-    /// The naive strategy: always choose the next position after p in (p, q).
-    Boundary,
-    /// The 1<sup>st</sup> LSEQ strategy: Choose a position close to p in (p, q).
-    BoundaryPlus(u32),
-    /// The 2<sup>nd</sup> LSEQ strategy: Choose a position close to q in (p, q).
-    BoundaryMinus(u32),
-    /// The optimal LSEQ strategy: Randomly choose between using
-    /// bounder+ and boundary- at each level. Once a decision is
-    /// made for a level it is always used (at that level).
-    Boundaries(u32),
-}
+use crate::{crdt::pos::path::allocator::Allocator, crdt::pos::path::Builder, Strategy};
 
 pub struct Algorithm {
     rng: fastrand::Rng,
@@ -121,7 +107,7 @@ fn exhausting_level_zero() {
 /// Logoot/LSEQ have a weakness to distributed edits at the same Position  
 ///
 /// https://stackoverflow.com/q/45722742
-fn interleaving_anomaly() {
+pub fn interleaving_anomaly() {
     let mut storage = crate::Storage::with_strategy(Strategy::Boundary);
 
     let a = crate::Position::new(0, 0, &[1]);
@@ -130,11 +116,13 @@ fn interleaving_anomaly() {
     storage.characters.insert(a, 'a');
     storage.characters.insert(c.clone(), 'c');
 
-    // try to insert 'b' between a & c…
-    let _ = storage.insert('b', &c);
+    // try to insert 'b' between a and c…
+    assert_eq!(storage.insert('b', &c), true);
 
     // 'c' will be second, rather than third
-    for ch in storage.characters(..) {
-        println!("{:?} {:?}", ch.0, ch.1);
-    }
+    assert_eq!(storage.string(..), "acb");
+
+    // for ch in storage.characters(..) {
+    //     println!("{:?} {:?}", ch.0, ch.1);
+    // }
 }

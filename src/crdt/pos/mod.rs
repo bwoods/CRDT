@@ -33,6 +33,7 @@ struct Large {
 }
 
 #[repr(C)]
+#[doc = include_str!("README.md")]
 pub union Position {
     small: Small,
     large: Large,

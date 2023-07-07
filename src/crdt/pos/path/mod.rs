@@ -1,4 +1,5 @@
-use super::{Position, Small, INLINE};
+use crate::crdt::pos::{Small, INLINE};
+use crate::Position;
 
 pub mod algorithm;
 mod allocator;

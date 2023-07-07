@@ -3,9 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
-use pos::path::{self, algorithm::Algorithm, Builder};
-pub use pos::{path::algorithm::Strategy, Position};
 pub use ranges::*;
+
+pub use crate::crdt::pos::Position;
+use crate::{crdt::pos::path, crdt::pos::path::algorithm::Algorithm, crdt::pos::path::Builder};
 
 mod pos;
 mod ranges;
@@ -20,11 +21,11 @@ pub struct Storage {
 
 impl Default for Storage {
     fn default() -> Self {
-        let mut characters = BTreeMap::<Position, char>::default();
+        let mut characters = BTreeMap::default();
         characters.insert(Position::first(), '\u{2402}');
         characters.insert(Position::last(), '\u{2403}');
 
-        let mut newlines = BTreeSet::<Position>::default();
+        let mut newlines = BTreeSet::default();
         newlines.insert(Position::first());
         newlines.insert(Position::last());
 
@@ -83,6 +84,19 @@ impl Extend<char> for Storage {
         self.newlines
             .extend(iter.filter(|(_, ch)| *ch == '\n').map(|(pos, _)| pos));
     }
+}
+
+pub enum Strategy {
+    /// The naive strategy: always choose the next position after p in (p, q).
+    Boundary,
+    /// The 1<sup>st</sup> LSEQ strategy: Choose a position close to p in (p, q).
+    BoundaryPlus(u32),
+    /// The 2<sup>nd</sup> LSEQ strategy: Choose a position close to q in (p, q).
+    BoundaryMinus(u32),
+    /// The optimal LSEQ strategy: Randomly choose between using
+    /// bounder+ and boundary- at each level. Once a decision is
+    /// made for a level it is always used (at that level).
+    Boundaries(u32),
 }
 
 impl Storage {

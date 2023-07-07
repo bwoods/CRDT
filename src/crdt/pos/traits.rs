@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
-use super::Position;
+use crate::Position;
 
 impl PartialOrd for Position {
     #[inline]
