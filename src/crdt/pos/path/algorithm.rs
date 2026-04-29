@@ -93,7 +93,7 @@ fn exhausting_level_zero() {
     let pos = Position::new(0, 0, &[Position::end_bound(0) - 2]);
     storage.characters.insert(pos, '0');
 
-    // now add more characters than fit in the remaining space
+    // now add more characters than will fit in the remaining space
     let string = "abcdef";
     storage.extend(string.chars());
 

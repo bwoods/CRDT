@@ -14,7 +14,7 @@ Noted that all of the various papers and implementations of these algorithms are
 
 The bytes that represent the position identifier start are initially stored inline but, as they grow in the size, fallback to being store on the heap.
 
-Both [TinyVec](https://crates.io/crates/tinyvec) and [SmallVec](https://crates.io/crates/smallvec) have the same minimum size as a `Vec` — 24 bytes on 64-bit platforms. This implementation manages to get that down to 16 bytes. For a large number of identifier, this savings adds up. Not just in memory usage, but **cache utilization** as well.
+Both [TinyVec](https://crates.io/crates/tinyvec) and [SmallVec](https://crates.io/crates/smallvec) have the same minimum size as a `Vec` — 24 bytes on 64-bit platforms. This implementation manages to get that down to 16 bytes. For a large number of identifiers, this savings adds up. Not just in memory usage, but **cache utilization** as well.
 
 
 

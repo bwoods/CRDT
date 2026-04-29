@@ -33,6 +33,7 @@ struct Large {
 }
 
 #[repr(C)]
+#[allow(rustdoc::bare_urls)]
 #[doc = include_str!("README.md")]
 pub union Position {
     small: Small,
@@ -40,8 +41,11 @@ pub union Position {
 }
 
 impl Position {
+    /// # Safety
+    ///
+    /// Will panic if `path.len()` > `u16.max()`
     pub(crate) fn new(site: u16, clock: u16, path: &[u32]) -> Position {
-        let len: u16 = path.len() as u16;
+        let len: u16 = path.len().try_into().unwrap(); // TODO: revisit failure handling
 
         let mut new = Position {
             small: Small {

@@ -29,7 +29,7 @@ impl Storage {
     pub fn graphemes<'a>(
         &'a self,
         range: impl RangeBounds<Position> + 'a,
-    ) -> impl Iterator<Item = (&Position, &Position)> + 'a {
+    ) -> impl Iterator<Item = (&'a Position, &'a Position)> + 'a {
         // skip `Position::first()` as is it an `Exclusive` bound
         let skip = (range.start_bound() == Unbounded) as usize;
 

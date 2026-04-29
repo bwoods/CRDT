@@ -22,8 +22,8 @@ pub struct Storage {
 impl Default for Storage {
     fn default() -> Self {
         let mut characters = BTreeMap::default();
-        characters.insert(Position::first(), '\u{2402}');
-        characters.insert(Position::last(), '\u{2403}');
+        characters.insert(Position::first(), '\u{2402}'); // ␂ (start-of-text)
+        characters.insert(Position::last(), '\u{2403}');  // ␃ (end-of-text)
 
         let mut newlines = BTreeSet::default();
         newlines.insert(Position::first());
@@ -47,7 +47,7 @@ impl FromIterator<char> for Storage {
         let positions = new
             .algorithm
             .generate(&path::FIRST, &path::LAST)
-            .map(|path| (Position::new(new.site, new.clock, &path)));
+            .map(|path| Position::new(new.site, new.clock, &path));
 
         let mut iter = positions.zip(chars);
         new.characters.extend(iter.by_ref());
@@ -77,7 +77,7 @@ impl Extend<char> for Storage {
         let positions = self
             .algorithm
             .generate(&left, &path::LAST)
-            .map(|path| (Position::new(self.site, clock, &path)));
+            .map(|path| Position::new(self.site, clock, &path));
 
         let mut iter = positions.zip(chars);
         self.characters.extend(iter.by_ref());
